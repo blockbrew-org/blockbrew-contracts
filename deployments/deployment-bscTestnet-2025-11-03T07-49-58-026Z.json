@@ -1,0 +1,23 @@
+{
+  "network": "bscTestnet",
+  "deployer": "0x55E85152C6E432F1889bB4Ef363eefbcf6f446cF",
+  "timestamp": "2025-11-03T07:49:52.471Z",
+  "contracts": {
+    "BrewToken": {
+      "address": "0x6d22491Cb5ECDD73F654C9bCf4433624fEfc9227",
+      "name": "Brew Token",
+      "symbol": "BREW",
+      "totalSupply": "10000000000.0",
+      "deployerBalance": "10000000000.0"
+    },
+    "BrewNFT": {
+      "address": "0x2955afD523988fA3287211D231F5c89c9F8a727A",
+      "name": "Brew NFT",
+      "symbol": "BNFT",
+      "price": "0.001",
+      "maxSupply": "10000",
+      "totalMinted": "0",
+      "remainingSupply": "10000"
+    }
+  }
+}
