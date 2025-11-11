@@ -1,13 +1,13 @@
 // 合约地址配置 - bscTestnet
-// 部署时间: 2025/11/7 11:18:26
+// 部署时间: 2025/11/10 18:48:43
 
 const CONTRACTS = {
   97: {
     BrewToken: {
-      address: '0xD47995c7c75dFcd43F5Cf71D98517ADDd9e9113C',
+      address: '0xba81621aea862a4b6f11D2f28Bc4cA8C3b9b0479',
     },
     BrewNFT: {
-      address: '0xE2B0F6b15379D81390560f0dFD7f5af95092A63e',
+      address: '0xCca716f20219459df9695d0bC306Cc47cd463cc8',
     }
   }
 };

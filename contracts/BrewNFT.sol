@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "erc721a/contracts/ERC721A.sol";
+import "erc721a/contracts/extensions/ERC721AQueryable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
@@ -10,8 +11,9 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
  * @title BrewNFT
  * @dev 简洁、安全的NFT合约 - 参考BAYC、Azuki等蓝筹项目设计
  * @notice 使用严格价格匹配，支持批量mint（最多300个）
+ * @notice 包含ERC721AQueryable扩展，支持高效的批量查询
  */
-contract BrewNFT is ERC721A, Ownable, ReentrancyGuard, Pausable {
+contract BrewNFT is ERC721A, ERC721AQueryable, Ownable, ReentrancyGuard, Pausable {
 
     // ============ 状态变量 ============
 
@@ -197,6 +199,84 @@ contract BrewNFT is ERC721A, Ownable, ReentrancyGuard, Pausable {
      */
     function remainingSupply() external view returns (uint256) {
         return maxSupply - _totalMinted();
+    }
+
+    // ============ ERC721AQueryable 增强查询功能 ============
+
+    /// @notice 推荐的单次查询范围（防止超时）
+    uint256 public constant RECOMMENDED_QUERY_RANGE = 2000;
+
+    /// @notice 单次查询的最大范围限制
+    uint256 public constant MAX_QUERY_RANGE = 5000;
+
+    /**
+     * @notice 获取分页查询的推荐参数
+     * @return startTokenId 起始tokenId（总是从1开始）
+     * @return pageSize 推荐的每页大小
+     * @return totalPages 基于当前总供应量的总页数
+     * @return totalMintedCount 当前已铸造的总数
+     * @dev 前端可以用这个方法获取合理的分页参数，然后调用tokensOfOwnerIn进行查询
+     * @dev 使用示例：
+     *      (start, pageSize, totalPages, total) = getQueryPagination();
+     *      for (page = 0; page < totalPages; page++) {
+     *          uint256 rangeStart = start + page * pageSize;
+     *          uint256 rangeStop = rangeStart + pageSize;
+     *          if (rangeStop > total + 1) rangeStop = total + 1;
+     *          uint256[] memory tokens = tokensOfOwnerIn(owner, rangeStart, rangeStop);
+     *      }
+     */
+    function getQueryPagination()
+        external
+        view
+        returns (
+            uint256 startTokenId,
+            uint256 pageSize,
+            uint256 totalPages,
+            uint256 totalMintedCount
+        )
+    {
+        startTokenId = _startTokenId();
+        pageSize = RECOMMENDED_QUERY_RANGE;
+        totalMintedCount = _totalMinted();
+
+        if (totalMintedCount == 0) {
+            totalPages = 0;
+        } else {
+            // 计算需要多少页
+            uint256 tokensToScan = totalMintedCount;
+            totalPages = (tokensToScan + pageSize - 1) / pageSize;
+        }
+    }
+
+    /**
+     * @notice 获取指定页的查询范围
+     * @param pageNumber 页码（从0开始）
+     * @return rangeStart 该页的起始tokenId
+     * @return rangeStop 该页的结束tokenId（不包含）
+     * @dev 配合tokensOfOwnerIn使用
+     * @dev 使用示例：
+     *      (start, stop) = getPageRange(0);
+     *      uint256[] memory tokens = tokensOfOwnerIn(owner, start, stop);
+     */
+    function getPageRange(uint256 pageNumber)
+        external
+        view
+        returns (uint256 rangeStart, uint256 rangeStop)
+    {
+        uint256 startTokenId = _startTokenId();
+        uint256 totalMintedCount = _totalMinted();
+        uint256 pageSize = RECOMMENDED_QUERY_RANGE;
+
+        rangeStart = startTokenId + pageNumber * pageSize;
+        rangeStop = rangeStart + pageSize;
+
+        // 确保不超过已mint的范围
+        uint256 maxTokenId = startTokenId + totalMintedCount;
+        if (rangeStop > maxTokenId) {
+            rangeStop = maxTokenId;
+        }
+
+        require(rangeStart < maxTokenId, "Page out of range");
     }
 
     // ============ 内部函数 ============
