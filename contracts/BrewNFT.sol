@@ -9,36 +9,36 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
  * @title BrewNFT
- * @dev 简洁、安全的NFT合约 - 参考BAYC、Azuki等蓝筹项目设计
- * @notice 使用严格价格匹配，支持批量mint（最多300个）
- * @notice 包含ERC721AQueryable扩展，支持高效的批量查询
+ * @dev Simple and secure NFT contract - inspired by BAYC, Azuki and other blue-chip projects
+ * @notice Uses strict price matching, supports batch minting (up to 300 per transaction)
+ * @notice Includes ERC721AQueryable extension for efficient batch queries
  */
 contract BrewNFT is ERC721A, ERC721AQueryable, Ownable, ReentrancyGuard, Pausable {
 
-    // ============ 状态变量 ============
+    // ============ State Variables ============
 
-    /// @notice 收款钱包地址（接收mint付款）
+    /// @notice Treasury wallet address (receives mint payments)
     address payable public treasury;
 
-    /// @notice NFT单价（BNB）
+    /// @notice NFT price per unit (in BNB)
     uint256 public price;
 
-    /// @notice 最大供应量
+    /// @notice Maximum supply
     uint256 public maxSupply;
 
-    /// @notice 绝对最大供应量（不可更改的硬性上限）
+    /// @notice Absolute maximum supply (immutable hard cap)
     uint256 public constant ABSOLUTE_MAX_SUPPLY = 100000;
 
-    /// @notice 单次mint最大数量
+    /// @notice Maximum quantity per mint transaction
     uint256 public constant MAX_PER_MINT = 300;
 
-    /// @notice 基础URI
+    /// @notice Base URI for token metadata
     string private baseTokenURI;
 
-    /// @notice URI是否已锁定（锁定后不可更改）
+    /// @notice Whether URI is locked (cannot be changed after locking)
     bool public uriLocked;
 
-    // ============ 事件 ============
+    // ============ Events ============
 
     event Minted(address indexed to, uint256 quantity, uint256 totalCost);
     event PriceUpdated(uint256 newPrice);
@@ -48,39 +48,39 @@ contract BrewNFT is ERC721A, ERC721AQueryable, Ownable, ReentrancyGuard, Pausabl
     event Withdrawn(address indexed to, uint256 amount);
     event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
 
-    // ============ 构造函数 ============
+    // ============ Constructor ============
 
     /**
-     * @dev 初始化NFT合约
-     * @param _treasury 收款钱包地址
+     * @dev Initialize NFT contract
+     * @param _treasury Treasury wallet address
      */
     constructor(address payable _treasury) ERC721A("Brew NFT", "BNFT") Ownable(msg.sender) {
         require(_treasury != address(0), "Invalid treasury address");
         treasury = _treasury;
-        price = 0.001 ether;       // 初始价格: 0.001 BNB
-        maxSupply = 10000;         // 初始最大供应量: 10000
+        price = 0.001 ether;       // Initial price: 0.001 BNB
+        maxSupply = 10000;         // Initial max supply: 10000
         require(maxSupply <= ABSOLUTE_MAX_SUPPLY, "Exceeds absolute max supply");
     }
 
-    // ============ 核心功能 ============
+    // ============ Core Functions ============
 
     /**
-     * @notice 批量mint NFT
-     * @param quantity mint数量 (1-300)
+     * @notice Batch mint NFTs
+     * @param quantity Quantity to mint (1-300)
      */
     function mint(uint256 quantity) external payable nonReentrant whenNotPaused {
-        // 参数验证
+        // Parameter validation
         require(quantity > 0, "Invalid quantity");
         require(quantity <= MAX_PER_MINT, "Exceeds max per mint");
 
-        // 供应量检查
+        // Supply check
         require(_totalMinted() + quantity <= maxSupply, "Exceeds max supply");
 
-        // 价格验证（严格匹配）
+        // Price verification (strict match)
         uint256 totalCost = price * quantity;
         require(msg.value == totalCost, "Incorrect payment");
 
-        // 立即转账到收款钱包
+        // Transfer immediately to treasury wallet
         (bool success, ) = treasury.call{value: totalCost}("");
         require(success, "Transfer to treasury failed");
 
@@ -90,11 +90,11 @@ contract BrewNFT is ERC721A, ERC721AQueryable, Ownable, ReentrancyGuard, Pausabl
         emit Minted(msg.sender, quantity, totalCost);
     }
 
-    // ============ Owner管理功能 ============
+    // ============ Owner Management Functions ============
 
     /**
-     * @notice 设置NFT单价
-     * @param newPrice 新价格（wei）
+     * @notice Set NFT price per unit
+     * @param newPrice New price in wei
      */
     function setPrice(uint256 newPrice) external onlyOwner {
         require(newPrice > 0, "Price must be greater than zero");
@@ -103,9 +103,9 @@ contract BrewNFT is ERC721A, ERC721AQueryable, Ownable, ReentrancyGuard, Pausabl
     }
 
     /**
-     * @notice 设置最大供应量
-     * @param newMaxSupply 新的最大供应量
-     * @dev 只能设置为大于等于当前已mint数量且不超过绝对上限的值
+     * @notice Set maximum supply
+     * @param newMaxSupply New maximum supply
+     * @dev Can only be set to a value greater than or equal to current minted amount and not exceeding absolute max
      */
     function setMaxSupply(uint256 newMaxSupply) external onlyOwner {
         require(newMaxSupply >= _totalMinted(), "Below current supply");
@@ -115,8 +115,8 @@ contract BrewNFT is ERC721A, ERC721AQueryable, Ownable, ReentrancyGuard, Pausabl
     }
 
     /**
-     * @notice 设置收款钱包地址
-     * @param newTreasury 新的收款地址
+     * @notice Set treasury wallet address
+     * @param newTreasury New treasury address
      */
     function setTreasury(address payable newTreasury) external onlyOwner {
         require(newTreasury != address(0), "Invalid address");
@@ -126,9 +126,9 @@ contract BrewNFT is ERC721A, ERC721AQueryable, Ownable, ReentrancyGuard, Pausabl
     }
 
     /**
-     * @notice 设置基础URI
-     * @param newBaseURI 新的基础URI
-     * @dev 只有在URI未锁定时才能设置
+     * @notice Set base URI
+     * @param newBaseURI New base URI
+     * @dev Can only be set when URI is not locked
      */
     function setBaseURI(string calldata newBaseURI) external onlyOwner {
         require(!uriLocked, "URI is locked");
@@ -137,8 +137,8 @@ contract BrewNFT is ERC721A, ERC721AQueryable, Ownable, ReentrancyGuard, Pausabl
     }
 
     /**
-     * @notice 永久锁定URI，锁定后无法再修改
-     * @dev 此操作不可逆，请谨慎操作！建议在reveal后锁定
+     * @notice Permanently lock URI, cannot be modified after locking
+     * @dev This operation is irreversible! Recommended to lock after reveal
      */
     function lockURI() external onlyOwner {
         require(!uriLocked, "URI already locked");
@@ -148,23 +148,23 @@ contract BrewNFT is ERC721A, ERC721AQueryable, Ownable, ReentrancyGuard, Pausabl
     }
 
     /**
-     * @notice 暂停mint
+     * @notice Pause minting
      */
     function pause() external onlyOwner {
         _pause();
     }
 
     /**
-     * @notice 恢复mint
+     * @notice Resume minting
      */
     function unpause() external onlyOwner {
         _unpause();
     }
 
     /**
-     * @notice 紧急提现功能 - 提取合约中意外接收的BNB
-     * @dev 正常情况下合约余额应为0（mint收入直接转treasury）
-     *      此函数仅用于提取误转入合约的资金
+     * @notice Emergency withdraw function - extract accidentally received BNB in contract
+     * @dev Normally contract balance should be 0 (mint proceeds go directly to treasury)
+     *      This function is only for extracting mistakenly sent funds
      */
     function emergencyWithdraw() external onlyOwner nonReentrant {
         uint256 balance = address(this).balance;
@@ -176,47 +176,47 @@ contract BrewNFT is ERC721A, ERC721AQueryable, Ownable, ReentrancyGuard, Pausabl
         emit Withdrawn(owner(), balance);
     }
 
-    // ============ 查询功能 ============
+    // ============ Query Functions ============
 
     /**
-     * @notice 查询总mint数量
+     * @notice Query total minted amount
      */
     function totalMinted() external view returns (uint256) {
         return _totalMinted();
     }
 
     /**
-     * @notice 查询合约BNB余额
-     * @dev 正常情况下应为0（mint收入直接转treasury）
-     *      如果有余额，说明有误转入的资金
+     * @notice Query contract BNB balance
+     * @dev Normally should be 0 (mint proceeds go directly to treasury)
+     *      If there is a balance, it means there are mistakenly sent funds
      */
     function getBalance() external view returns (uint256) {
         return address(this).balance;
     }
 
     /**
-     * @notice 查询剩余可mint数量
+     * @notice Query remaining mintable supply
      */
     function remainingSupply() external view returns (uint256) {
         return maxSupply - _totalMinted();
     }
 
-    // ============ ERC721AQueryable 增强查询功能 ============
+    // ============ ERC721AQueryable Enhanced Query Functions ============
 
-    /// @notice 推荐的单次查询范围（防止超时）
+    /// @notice Recommended single query range (prevents timeout)
     uint256 public constant RECOMMENDED_QUERY_RANGE = 2000;
 
-    /// @notice 单次查询的最大范围限制
+    /// @notice Maximum query range limit
     uint256 public constant MAX_QUERY_RANGE = 5000;
 
     /**
-     * @notice 获取分页查询的推荐参数
-     * @return startTokenId 起始tokenId（总是从1开始）
-     * @return pageSize 推荐的每页大小
-     * @return totalPages 基于当前总供应量的总页数
-     * @return totalMintedCount 当前已铸造的总数
-     * @dev 前端可以用这个方法获取合理的分页参数，然后调用tokensOfOwnerIn进行查询
-     * @dev 使用示例：
+     * @notice Get recommended parameters for paginated queries
+     * @return startTokenId Starting tokenId (always starts from 1)
+     * @return pageSize Recommended page size
+     * @return totalPages Total pages based on current total supply
+     * @return totalMintedCount Current total minted amount
+     * @dev Frontend can use this method to get reasonable pagination parameters, then call tokensOfOwnerIn
+     * @dev Usage example:
      *      (start, pageSize, totalPages, total) = getQueryPagination();
      *      for (page = 0; page < totalPages; page++) {
      *          uint256 rangeStart = start + page * pageSize;
@@ -242,19 +242,19 @@ contract BrewNFT is ERC721A, ERC721AQueryable, Ownable, ReentrancyGuard, Pausabl
         if (totalMintedCount == 0) {
             totalPages = 0;
         } else {
-            // 计算需要多少页
+            // Calculate how many pages are needed
             uint256 tokensToScan = totalMintedCount;
             totalPages = (tokensToScan + pageSize - 1) / pageSize;
         }
     }
 
     /**
-     * @notice 获取指定页的查询范围
-     * @param pageNumber 页码（从0开始）
-     * @return rangeStart 该页的起始tokenId
-     * @return rangeStop 该页的结束tokenId（不包含）
-     * @dev 配合tokensOfOwnerIn使用
-     * @dev 使用示例：
+     * @notice Get query range for specified page
+     * @param pageNumber Page number (starting from 0)
+     * @return rangeStart Starting tokenId for this page
+     * @return rangeStop Ending tokenId for this page (exclusive)
+     * @dev Use together with tokensOfOwnerIn
+     * @dev Usage example:
      *      (start, stop) = getPageRange(0);
      *      uint256[] memory tokens = tokensOfOwnerIn(owner, start, stop);
      */
@@ -270,7 +270,7 @@ contract BrewNFT is ERC721A, ERC721AQueryable, Ownable, ReentrancyGuard, Pausabl
         rangeStart = startTokenId + pageNumber * pageSize;
         rangeStop = rangeStart + pageSize;
 
-        // 确保不超过已mint的范围
+        // Ensure not exceeding minted range
         uint256 maxTokenId = startTokenId + totalMintedCount;
         if (rangeStop > maxTokenId) {
             rangeStop = maxTokenId;
@@ -279,17 +279,17 @@ contract BrewNFT is ERC721A, ERC721AQueryable, Ownable, ReentrancyGuard, Pausabl
         require(rangeStart < maxTokenId, "Page out of range");
     }
 
-    // ============ 内部函数 ============
+    // ============ Internal Functions ============
 
     /**
-     * @dev 返回基础URI
+     * @dev Return base URI
      */
     function _baseURI() internal view virtual override returns (string memory) {
         return baseTokenURI;
     }
 
     /**
-     * @dev 覆盖起始tokenId，从1开始
+     * @dev Override starting tokenId, starts from 1
      */
     function _startTokenId() internal pure virtual override returns (uint256) {
         return 1;

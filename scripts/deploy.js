@@ -30,9 +30,18 @@ async function main() {
   // ========================================
   console.log("📝 [1/2] 部署 BrewToken 合约...\n");
 
+  // 配置 BrewToken 参数
+  // _delegate: 合约 Owner (管理员地址)
+  // _treasury: 代币接收地址 (获得100亿代币)
+  const tokenDelegate = process.env.TOKEN_DELEGATE || deployer.address;
+  const tokenTreasury = process.env.TOKEN_TREASURY || deployer.address;
+
+  console.log("   👤 Delegate (Owner):", tokenDelegate);
+  console.log("   💼 Treasury (Token Holder):", tokenTreasury);
+
   const BrewToken = await hre.ethers.getContractFactory("BrewToken");
   console.log("   ⏳ 正在部署...");
-  const brewToken = await BrewToken.deploy();
+  const brewToken = await BrewToken.deploy(tokenDelegate, tokenTreasury);
   await brewToken.waitForDeployment();
 
   const brewTokenAddress = await brewToken.getAddress();
@@ -43,13 +52,15 @@ async function main() {
   const tokenName = await brewToken.name();
   const tokenSymbol = await brewToken.symbol();
   const totalSupply = await brewToken.totalSupply();
-  const deployerTokenBalance = await brewToken.balanceOf(deployer.address);
+  const owner = await brewToken.owner();
+  const treasuryTokenBalance = await brewToken.balanceOf(tokenTreasury);
 
   console.log("\n   📊 代币信息:");
   console.log("      名称:", tokenName);
   console.log("      符号:", tokenSymbol);
   console.log("      总供应量:", hre.ethers.formatEther(totalSupply), "BREW");
-  console.log("      部署者余额:", hre.ethers.formatEther(deployerTokenBalance), "BREW");
+  console.log("      合约 Owner:", owner);
+  console.log("      Treasury 余额:", hre.ethers.formatEther(treasuryTokenBalance), "BREW");
 
   // 保存 BrewToken 信息
   deploymentInfo.contracts.BrewToken = {
@@ -57,7 +68,10 @@ async function main() {
     name: tokenName,
     symbol: tokenSymbol,
     totalSupply: hre.ethers.formatEther(totalSupply),
-    deployerBalance: hre.ethers.formatEther(deployerTokenBalance)
+    owner: owner,
+    delegate: tokenDelegate,
+    treasury: tokenTreasury,
+    treasuryBalance: hre.ethers.formatEther(treasuryTokenBalance)
   };
 
   console.log("\n" + "=".repeat(70) + "\n");
@@ -152,7 +166,7 @@ async function main() {
   console.log("   └─ 最大供应:", maxSupply.toString());
 
   console.log("\n📝 验证合约命令:");
-  console.log(`   npx hardhat verify --network ${hre.network.name} ${brewTokenAddress}`);
+  console.log(`   npx hardhat verify --network ${hre.network.name} ${brewTokenAddress} ${tokenDelegate} ${tokenTreasury}`);
   console.log(`   npx hardhat verify --network ${hre.network.name} ${nftAddress} ${treasuryAddress}`);
 
   console.log("\n💾 部署信息已保存:");
