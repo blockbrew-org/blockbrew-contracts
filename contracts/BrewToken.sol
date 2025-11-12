@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  */
 contract BrewToken is ERC20, Ownable {
 
-    uint256 public constant INITIAL_SUPPLY = 10_000_000_000 * 10**18;
+    uint256 public constant INITIAL_SUPPLY = 10_000_000_000 ether;
 
     constructor(address _delegate, address _treasury) ERC20("Brew Token", "BREW") Ownable(_delegate) {
         _mint(_treasury, INITIAL_SUPPLY);
