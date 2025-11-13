@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "erc721a/contracts/ERC721A.sol";
+import "erc721a/contracts/IERC721A.sol";
 import "erc721a/contracts/extensions/ERC721AQueryable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -293,5 +294,36 @@ contract BrewNFT is ERC721A, ERC721AQueryable, Ownable, ReentrancyGuard, Pausabl
      */
     function _startTokenId() internal pure virtual override returns (uint256) {
         return 1;
+    }
+
+    /**
+     * @dev Override tokenURI to implement folder sharding
+     * @notice Splits 100,000 tokens into 100 folders (1000 tokens per folder)
+     * @notice Token #1-1000 → folder 0, Token #1001-2000 → folder 1, etc.
+     * @param tokenId Token ID
+     * @return Full token URI with folder path
+     */
+    function tokenURI(uint256 tokenId) public view virtual override(ERC721A, IERC721A) returns (string memory) {
+        if (!_exists(tokenId)) revert URIQueryForNonexistentToken();
+
+        string memory baseURI = _baseURI();
+        if (bytes(baseURI).length == 0) return "";
+
+        // Calculate folder number: (tokenId - 1) / 1000
+        // Token 1-1000 → folder 0
+        // Token 1001-2000 → folder 1
+        // Token 2001-3000 → folder 2
+        // ...
+        // Token 99001-100000 → folder 99
+        uint256 folderNumber = (tokenId - 1) / 1000;
+
+        // Concatenate: baseURI + folderNumber + "/" + tokenId
+        // Example: ipfs://CID/0/1
+        return string(abi.encodePacked(
+            baseURI,
+            _toString(folderNumber),
+            "/",
+            _toString(tokenId)
+        ));
     }
 }
